@@ -1,38 +1,42 @@
-# BlocklyGateway: Visual Programming Tool
+# Blockly-Gateway 🚪
 
-這是一個基於 Google Blockly 開發的視覺化 程式碼生成器。
-專為大學程式設計基礎課程 (CS101) 設計，作為學生從圖形化邏輯過渡到純文字編碼 (Visual Studio / Unity) 的敲門磚。
+Blockly-Gateway 是一個專為程式設計初學者設計的視覺化過渡工具。
+它的目標是作為一座「閘道」，幫助學生從圖形化積木（Blockly）無痛跨越到純文字編碼（Visual Studio / Unity）。
 
 ## ✨ 主要功能
 
-* 雙模式切換：支援生成 Visual Studio (Console App) 與 Unity (MonoBehaviour) 兩種格式的 C# 代碼。
+* 雙模式輸出：一鍵切換 Visual Studio (Console) 與 Unity (MonoBehaviour) 兩種 C# 格式，適應不同課程需求。
 
-* 即時預覽：拖拉積木時，右側即時顯示標準的 C# 語法。
+* 即時代碼預覽：拖拉積木的同時，右側即時顯示對應的標準 C# 語法，強化語法記憶。
 
-* 模擬執行：內建 JavaScript 模擬引擎，可在瀏覽器中直接執行邏輯（支援 Console 輸出與輸入）。
+* 瀏覽器模擬執行：內建 JavaScript 模擬引擎，免安裝 IDE 即可在網頁上驗證邏輯（支援輸入/輸出/亂數）。
 
-* 精簡設計：僅保留邏輯、迴圈、數學、變數、函式等核心概念，降低初學者的認知負擔。
+* 防呆與容錯：
+
+** 變數採用 dynamic 型別，避免初學者因型別錯誤受挫。
+
+** 智慧偵測：僅在需要時才顯示輔助函式（如 Input 或 Random），保持代碼介面整潔。
 
 ## 🚀 線上試用
 
 [點擊這裡使用工具](https://minghanbai.github.io/Blockly-Gateway/)
 
-## 🛠️ 如何使用
+🛠️ 教學應用場景
 
-1. 打開網頁。
+## 本工具特別適合 CS101 (程式設計導論) 的前兩週課程：
 
-2. 在左側拖拉積木組裝邏輯。
+* 邏輯建立：利用積木學習迴圈、判斷式、變數與函式。
 
-3. 觀察右側生成的 C# 程式碼。
+* 語法對照：觀察積木如何轉換為 C# 的 { } 與 ;。
 
-4. 點擊「▶ 執行」按鈕進行邏輯驗證。
-
-5. 點擊「複製程式碼」，貼上至 Visual Studio 或 Unity 中使用。
+* 信心建立：在面對 IDE 的語法錯誤挫折前，先體驗程式運作的樂趣。
 
 ## 📦 技術棧
 
-Google Blockly (v10.4.3)
+* Google Blockly (v10.4.3)
 
-HTML5 / JavaScript (Single File Deployment)
+* HTML5 / CSS3 / JavaScript (Single File Application)
 
-由 [minghanbai] 開發維護
+## 📄 授權
+
+* MIT License. 歡迎教育工作者自由使用與擴充。
