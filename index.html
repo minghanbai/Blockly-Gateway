@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <title>Blockly C# 生成器</title>
+  <link rel="icon" href="data:,">
+  
+  <script>const apiKey = "";</script>
+  
+  <!-- Blockly 核心 -->
+  <script src="https://unpkg.com/blockly@10.4.3/blockly_compressed.js"></script>
+  <script src="https://unpkg.com/blockly@10.4.3/blocks_compressed.js"></script>
+  <script src="https://unpkg.com/blockly@10.4.3/msg/zh-hant.js"></script>
+  <!-- JavaScript 生成器 (模擬用) -->
+  <script src="https://unpkg.com/blockly@10.4.3/javascript_compressed.js"></script>
+  
+  <style>
+    body {
+      background-color: #f0f2f5;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background-color: #68217A;
+      color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    h1 { margin: 0; font-size: 1.2rem; }
+    .controls { display: flex; gap: 10px; align-items: center; }
+    select {
+      padding: 5px;
+      border-radius: 4px;
+      border: none;
+      font-size: 1rem;
+    }
+    .run-btn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      font-size: 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: bold;
+    }
+    .run-btn:hover { background-color: #45a049; }
+    
+    #main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    #blocklyDiv {
+      height: 100%;
+      width: 55%;
+    }
+    #rightPanel {
+      width: 45%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid #ccc;
+    }
+    
+    #codeContainer {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: #1e1e1e;
+      border-bottom: 2px solid #444;
+      min-height: 200px;
+    }
+    #codeLabel {
+      color: #dcdcdc;
+      padding: 8px 15px;
+      background-color: #252526;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #3e3e42;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #codeOutput {
+      flex: 1;
+      width: 100%;
+      background-color: #1e1e1e;
+      color: #9cdcfe;
+      border: none;
+      padding: 15px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+    }
+
+    #consoleContainer {
+      flex: 0 0 30%;
+      background-color: #0c0c0c;
+      display: flex;
+      flex-direction: column;
+    }
+    #consoleLabel {
+      color: #dcdcdc;
+      padding: 5px 15px;
+      background-color: #333;
+      font-size: 0.85rem;
+      border-top: 1px solid #444;
+      border-bottom: 1px solid #444;
+    }
+    #consoleOutput {
+      flex: 1;
+      padding: 10px;
+      color: #cccccc;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 13px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .console-log { color: #cccccc; }
+    .console-error { color: #ff6b68; }
+
+    .copy-btn {
+      background-color: #007acc;
+      color: white;
+      border: none;
+      padding: 4px 12px;
+      cursor: pointer;
+      border-radius: 3px;
+      font-size: 0.8rem;
+    }
+    .copy-btn:hover { background-color: #005f9e; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Blockly to C# (CS101)</h1>
+    <div class="controls">
+      <button class="run-btn" onclick="runCode()">▶ 執行 (Run)</button>
+      <div style="width: 20px;"></div>
+      <label for="target-platform">模式：</label>
+      <select id="target-platform" onchange="updateCode()">
+        <option value="vs">Visual Studio (Console)</option>
+        <option value="unity">Unity (MonoBehaviour)</option>
+      </select>
+    </div>
+  </header>
+
+  <div id="main-container">
+    <div id="blocklyDiv"></div>
+    <div id="rightPanel">
+      <div id="codeContainer">
+        <div id="codeLabel">
+          <span>C# 原始碼 (預覽)</span>
+          <button class="copy-btn" onclick="copyCode()">複製程式碼</button>
+        </div>
+        <textarea id="codeOutput" readonly></textarea>
+      </div>
+      <div id="consoleContainer">
+        <div id="consoleLabel">執行結果 (Console Output) - JavaScript 模擬</div>
+        <div id="consoleOutput">準備就緒...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 工具箱 -->
+  <xml xmlns="https://developers.google.com/blockly/xml" id="toolbox" style="display: none">
+    <category name="邏輯 (Logic)" colour="#5b80a5">
+      <block type="controls_if"></block>
+      <block type="logic_compare"></block>
+      <block type="logic_operation"></block>
+      <block type="logic_boolean"></block>
+    </category>
+    <category name="迴圈 (Loops)" colour="#5ba55b">
+      <block type="controls_repeat_ext">
+        <value name="TIMES">
+          <shadow type="math_number">
+            <field name="NUM">10</field>
+          </shadow>
+        </value>
+      </block>
+      <block type="controls_whileUntil"></block>
+      <block type="controls_flow_statements"></block>
+    </category>
+    <category name="數學 (Math)" colour="#5b67a5">
+      <block type="math_number">
+        <field name="NUM">0</field>
+      </block>
+      <block type="math_arithmetic">
+        <value name="A">
+          <shadow type="math_number">
+            <field name="NUM">1</field>
+          </shadow>
+        </value>
+        <value name="B">
+          <shadow type="math_number">
+            <field name="NUM">1</field>
+          </shadow>
+        </value>
+      </block>
+      <block type="math_random_int">
+        <value name="FROM">
+          <shadow type="math_number">
+            <field name="NUM">1</field>
+          </shadow>
+        </value>
+        <value name="TO">
+          <shadow type="math_number">
+            <field name="NUM">100</field>
+          </shadow>
+        </value>
+      </block>
+    </category>
+    <category name="文字 (Text)" colour="#5ba58c">
+      <block type="text"></block>
+      <block type="text_join"></block>
+      <block type="text_print">
+        <value name="TEXT">
+          <shadow type="text">
+            <field name="TEXT">Hello World</field>
+          </shadow>
+        </value>
+      </block>
+      <block type="text_prompt_ext">
+        <value name="TEXT">
+          <shadow type="text">
+            <field name="TEXT">請輸入...</field>
+          </shadow>
+        </value>
+      </block>
+    </category>
+    <category name="清單 (Lists)" colour="#745ba5">
+      <block type="lists_create_with">
+        <mutation items="3"></mutation>
+      </block>
+      <block type="lists_length"></block>
+      <block type="lists_isEmpty"></block>
+      <block type="lists_getIndex">
+        <value name="VALUE">
+          <block type="variables_get">
+            <field name="VAR">list</field>
+          </block>
+        </value>
+      </block>
+      <block type="lists_setIndex">
+        <value name="LIST">
+          <block type="variables_get">
+            <field name="VAR">list</field>
+          </block>
+        </value>
+      </block>
+    </category>
+    <category name="變數 (Variables)" colour="#a55b80" custom="VARIABLE"></category>
+    <category name="函式 (Functions)" colour="#995ba5" custom="PROCEDURE"></category>
+  </xml>
+
+  <script>
+    /* ==========================================================================
+       1. C# 生成器建構與設定
+       ========================================================================== */
+    
+    Blockly.CSharp = new Blockly.Generator('CSharp');
+
+    Blockly.CSharp.RESERVED_WORDS_ = 
+        'abstract,as,base,bool,break,byte,case,catch,char,checked,class,const,' +
+        'continue,decimal,default,delegate,do,double,else,enum,event,explicit,' +
+        'extern,false,finally,fixed,float,for,foreach,goto,if,implicit,in,int,' +
+        'interface,internal,is,lock,long,namespace,new,null,object,operator,' +
+        'out,override,params,private,protected,public,readonly,ref,return,sbyte,' +
+        'sealed,short,sizeof,stackalloc,static,string,struct,switch,this,throw,' +
+        'true,try,typeof,uint,ulong,unchecked,unsafe,ushort,using,virtual,void,' +
+        'volatile,while';
+
+    Blockly.CSharp.ORDER_ATOMIC = 0;
+    Blockly.CSharp.ORDER_MEMBER = 1;
+    Blockly.CSharp.ORDER_FUNCTION_CALL = 2; 
+    Blockly.CSharp.ORDER_MULTIPLICATIVE = 5; 
+    Blockly.CSharp.ORDER_ADDITIVE = 6;       
+    Blockly.CSharp.ORDER_RELATIONAL = 8;     
+    Blockly.CSharp.ORDER_EQUALITY = 9;       
+    Blockly.CSharp.ORDER_LOGICAL_AND = 13;   
+    Blockly.CSharp.ORDER_LOGICAL_OR = 14;    
+    Blockly.CSharp.ORDER_ASSIGNMENT = 16;
+    Blockly.CSharp.ORDER_NONE = 99;
+
+    const originalBlockToCode = Blockly.CSharp.blockToCode;
+    Blockly.CSharp.blockToCode = function(block) {
+      if (!block) return '';
+      if (!this.forBlock[block.type]) {
+        console.warn('Block definition missing for:', block.type);
+        var msg = '/* [警告] 尚未支援積木: ' + block.type + ' */';
+        if (block.outputConnection) {
+            return [msg, Blockly.CSharp.ORDER_NONE];
+        }
+        return msg + '\n';
+      }
+      try {
+        return originalBlockToCode.call(this, block);
+      } catch (e) {
+        var errorMsg = '/* [錯誤] 生成代碼例外: ' + e.message + ' */';
+        if (block.outputConnection) {
+            return [errorMsg, Blockly.CSharp.ORDER_NONE];
+        }
+        return errorMsg + '\n';
+      }
+    };
+
+    /* ==========================================================================
+       2. 初始化與收尾 (Init / Finish)
+       ========================================================================== */
+
+    Blockly.CSharp.init = function(workspace) {
+      if (!Blockly.CSharp.nameDB_) {
+        Blockly.CSharp.nameDB_ = new Blockly.Names(Blockly.CSharp.RESERVED_WORDS_);
+      } else {
+        Blockly.CSharp.nameDB_.reset();
+      }
+      
+      Blockly.CSharp.nameDB_.setVariableMap(workspace.getVariableMap());
+      this.isInitialized = true;
+
+      // [新增] 旗標，用來偵測是否使用了特定功能的積木
+      Blockly.CSharp.provideInputHelper_ = false;
+      Blockly.CSharp.provideRandomHelper_ = false;
+
+      Blockly.CSharp.definitions_ = Object.create(null);
+      Blockly.CSharp.vars_ = [];
+
+      var variables = Blockly.Variables.allUsedVarModels(workspace);
+      for (var i = 0; i < variables.length; i++) {
+        var varName = Blockly.CSharp.nameDB_.getName(variables[i].name, Blockly.Variables.NAME_TYPE);
+        Blockly.CSharp.vars_.push('dynamic ' + varName + ' = 0; // 可自由存放數字或文字');
+      }
+    };
+
+    Blockly.CSharp.finish = function(code) {
+      var definitions = [];
+      for (var name in Blockly.CSharp.definitions_) {
+        definitions.push(Blockly.CSharp.definitions_[name]);
+      }
+      var functionsCode = definitions.join('\n\n        ');
+
+      var varsCode = Blockly.CSharp.vars_.join('\n            ');
+
+      var platform = document.getElementById('target-platform').value;
+      var allCode = '';
+      
+      // 輔助程式碼片段
+      var inputHelper = 
+        '        static string Input(string prompt)\n' +
+        '        {\n' +
+        '            Console.Write(prompt);\n' +
+        '            return Console.ReadLine();\n' +
+        '        }';
+        
+      var inputHelperUnity = 
+        '    string Input(string prompt)\n' +
+        '    {\n' +
+        '        Debug.Log("請輸入 (" + prompt + "): [Unity不支援直接輸入]");\n' +
+        '        return "";\n' +
+        '    }';
+
+      var randomObj = '        static Random _random = new Random();';
+
+      // [修改] 根據旗標與平台，決定要加入哪些輔助程式碼
+      var helperCode = '';
+      
+      // 1. Input Helper: 只要用了輸入積木就加入
+      if (Blockly.CSharp.provideInputHelper_) {
+          if (platform === 'vs') {
+              helperCode += '\n' + '        // [輔助] 輸入函式\n' + inputHelper + '\n';
+          } else {
+              helperCode += '\n' + '    // [輔助] 輸入函式\n' + inputHelperUnity + '\n';
+          }
+      }
+
+      // 2. Random Helper: 只有在 VS 模式且用了隨機積木時才加入 _random 物件
+      if (Blockly.CSharp.provideRandomHelper_ && platform === 'vs') {
+          helperCode += '\n' + '        // [輔助] 亂數物件\n' + randomObj + '\n';
+      }
+
+      // 組合程式碼
+      if (platform === 'vs') {
+        allCode = 'using System;\nusing System.Collections.Generic;\n\n' +
+                  'namespace BlocklyApp\n{\n' +
+                  '    class Program\n    {\n' +
+                  '        // --- [函式定義區] ---\n' +
+                  (functionsCode ? '        ' + functionsCode + '\n' : '') +
+                  helperCode + // 插入動態生成的輔助碼
+                  '\n' +
+                  '        static void Main(string[] args)\n        {\n' +
+                  '            // --- [變數宣告區] ---\n' +
+                  (varsCode ? '            ' + varsCode + '\n' : '') +
+                  '\n' +
+                  '            // --- [主程式邏輯] ---\n' +
+                  '            ' + code.replace(/\n/g, '\n            ') +
+                  '\n        }\n    }\n}';
+      } else {
+        allCode = 'using UnityEngine;\nusing System.Collections;\nusing System.Collections.Generic;\n\n' +
+                  'public class MyScript : MonoBehaviour\n{\n' +
+                  '    // --- [函式定義區] ---\n' +
+                  (functionsCode ? '    ' + functionsCode.replace(/\n        /g, '\n    ') + '\n' : '') +
+                  helperCode + // 插入動態生成的輔助碼
+                  '\n' +
+                  '    void Start()\n    {\n' +
+                  '        // --- [變數宣告區] ---\n' +
+                  (varsCode ? '        ' + varsCode.replace(/\n            /g, '\n        ') + '\n' : '') +
+                  '\n' +
+                  '        // --- [主程式邏輯] ---\n' +
+                  '        ' + code.replace(/\n/g, '\n        ') +
+                  '\n    }\n}';
+      }
+      return allCode;
+    };
+
+    Blockly.CSharp.scrub_ = function(block, code) {
+      var nextBlock = block.nextConnection && block.nextConnection.targetBlock();
+      var nextCode = Blockly.CSharp.blockToCode(nextBlock);
+      return code + nextCode;
+    };
+
+    Blockly.CSharp.quote_ = function(string) {
+      string = string.replace(/\\/g, '\\\\')
+                     .replace(/"/g, '\\"')
+                     .replace(/\n/g, '\\n');
+      return '"' + string + '"';
+    };
+
+    function reindentBranch(branch) {
+      if (!branch) return '';
+      if (branch.endsWith('\n')) branch = branch.slice(0, -1);
+      branch = '          ' + branch.replace(/\n/g, '\n          ');
+      return branch + '\n';
+    }
+
+    /* ==========================================================================
+       3. C# 積木定義
+       ========================================================================== */
+    
+    Blockly.CSharp.forBlock['text_prompt_ext'] = function(block) {
+      // [標記] 使用了輸入積木
+      Blockly.CSharp.provideInputHelper_ = true;
+      
+      var msg = Blockly.CSharp.valueToCode(block, 'TEXT', Blockly.CSharp.ORDER_NONE) || '""';
+      var type = block.getFieldValue('TYPE');
+      var code = 'Input(' + msg + ')';
+      if (type == 'NUMBER') {
+        code = 'double.Parse(' + code + ')';
+      }
+      return [code, Blockly.CSharp.ORDER_FUNCTION_CALL];
+    };
+
+    Blockly.CSharp.forBlock['lists_create_with'] = function(block) {
+      var elements = new Array(block.itemCount_);
+      for (var i = 0; i < block.itemCount_; i++) {
+        elements[i] = Blockly.CSharp.valueToCode(block, 'ADD' + i, Blockly.CSharp.ORDER_NONE) || 'null';
+      }
+      var code = 'new List<dynamic> { ' + elements.join(', ') + ' }';
+      return [code, Blockly.CSharp.ORDER_ATOMIC];
+    };
+
+    Blockly.CSharp.forBlock['lists_length'] = function(block) {
+      var list = Blockly.CSharp.valueToCode(block, 'VALUE', Blockly.CSharp.ORDER_MEMBER) || 'new List<dynamic>()';
+      return [list + '.Count', Blockly.CSharp.ORDER_MEMBER];
+    };
+
+    Blockly.CSharp.forBlock['lists_isEmpty'] = function(block) {
+      var list = Blockly.CSharp.valueToCode(block, 'VALUE', Blockly.CSharp.ORDER_MEMBER) || 'new List<dynamic>()';
+      return [list + '.Count == 0', Blockly.CSharp.ORDER_EQUALITY];
+    };
+
+    Blockly.CSharp.forBlock['lists_getIndex'] = function(block) {
+      var where = block.getFieldValue('WHERE') || 'FROM_START';
+      var list = Blockly.CSharp.valueToCode(block, 'VALUE', Blockly.CSharp.ORDER_MEMBER) || 'null';
+
+      if (where == 'FROM_START') {
+        var at = Blockly.CSharp.valueToCode(block, 'AT', Blockly.CSharp.ORDER_NONE) || '1';
+        if (!isNaN(at)) {
+           at = parseInt(at) - 1;
+        } else {
+           at = '(' + at + ' - 1)';
+        }
+        var code = list + '[' + at + ']';
+        return [code, Blockly.CSharp.ORDER_MEMBER];
+      } else if (where == 'FIRST') {
+        return [list + '[0]', Blockly.CSharp.ORDER_MEMBER];
+      } else if (where == 'LAST') {
+        return [list + '[' + list + '.Count - 1]', Blockly.CSharp.ORDER_MEMBER];
+      } else if (where == 'RANDOM') {
+        // [標記] 使用了隨機積木
+        Blockly.CSharp.provideRandomHelper_ = true;
+        
+        var platform = document.getElementById('target-platform').value;
+        var code;
+        if (platform === 'unity') {
+           code = list + '[Random.Range(0, ' + list + '.Count)]';
+        } else {
+           code = list + '[_random.Next(' + list + '.Count)]';
+        }
+        return [code, Blockly.CSharp.ORDER_MEMBER];
+      }
+      return ['/* 未支援此清單操作 */ null', Blockly.CSharp.ORDER_NONE];
+    };
+
+    Blockly.CSharp.forBlock['lists_setIndex'] = function(block) {
+      var where = block.getFieldValue('WHERE') || 'FROM_START';
+      var list = Blockly.CSharp.valueToCode(block, 'LIST', Blockly.CSharp.ORDER_MEMBER) || 'null';
+      var value = Blockly.CSharp.valueToCode(block, 'TO', Blockly.CSharp.ORDER_ASSIGNMENT) || 'null';
+
+      if (where == 'FROM_START') {
+        var at = Blockly.CSharp.valueToCode(block, 'AT', Blockly.CSharp.ORDER_NONE) || '1';
+        if (!isNaN(at)) {
+           at = parseInt(at) - 1;
+        } else {
+           at = '(' + at + ' - 1)';
+        }
+        return list + '[' + at + '] = ' + value + ';\n';
+      } else if (where == 'FIRST') {
+        return list + '[0] = ' + value + ';\n';
+      } else if (where == 'LAST') {
+        return list + '[' + list + '.Count - 1] = ' + value + ';\n';
+      } else if (where == 'RANDOM') {
+        // [標記] 使用了隨機積木
+        Blockly.CSharp.provideRandomHelper_ = true;
+        
+        var platform = document.getElementById('target-platform').value;
+        if (platform === 'unity') {
+            return list + '[Random.Range(0, ' + list + '.Count)] = ' + value + ';\n';
+        } else {
+            return list + '[_random.Next(' + list + '.Count)] = ' + value + ';\n';
+        }
+      }
+      return '// 未支援此清單操作\n';
+    };
+
+    Blockly.CSharp.forBlock['math_random_int'] = function(block) {
+      // [標記] 使用了隨機積木
+      Blockly.CSharp.provideRandomHelper_ = true;
+        
+      var argument0 = Blockly.CSharp.valueToCode(block, 'FROM', Blockly.CSharp.ORDER_NONE) || '0';
+      var argument1 = Blockly.CSharp.valueToCode(block, 'TO', Blockly.CSharp.ORDER_NONE) || '0';
+      var platform = document.getElementById('target-platform').value;
+      if (platform === 'unity') return ['Random.Range(' + argument0 + ', ' + argument1 + ' + 1)', Blockly.CSharp.ORDER_FUNCTION_CALL];
+      return ['new Random().Next(' + argument0 + ', ' + argument1 + ' + 1)', Blockly.CSharp.ORDER_FUNCTION_CALL];
+    };
+
+    Blockly.CSharp.forBlock['procedures_defreturn'] = function(block) {
+      var funcName = Blockly.CSharp.nameDB_.getName(block.getFieldValue('NAME'), Blockly.Procedures.NAME_TYPE);
+      var branch = Blockly.CSharp.statementToCode(block, 'STACK');
+      branch = reindentBranch(branch);
+      var returnCode = Blockly.CSharp.valueToCode(block, 'RETURN', Blockly.CSharp.ORDER_NONE) || '';
+      
+      var args = [];
+      var variables = block.getVars();
+      for (var i = 0; i < variables.length; i++) {
+        args[i] = 'dynamic ' + Blockly.CSharp.nameDB_.getName(variables[i], Blockly.Variables.NAME_TYPE);
+      }
+
+      // [修正] 判斷平台，決定是否加上 static
+      var platform = document.getElementById('target-platform').value;
+      var prefix = (platform === 'vs') ? 'static ' : '';
+
+      var code = prefix + 'dynamic ' + funcName + '(' + args.join(', ') + ')\n        {\n' + 
+                 branch + 
+                 (returnCode ? '            return ' + returnCode + ';\n' : '') +
+                 '        }';
+      Blockly.CSharp.definitions_[funcName] = code;
+      return null;
+    };
+
+    Blockly.CSharp.forBlock['procedures_defnoreturn'] = function(block) {
+      var funcName = Blockly.CSharp.nameDB_.getName(block.getFieldValue('NAME'), Blockly.Procedures.NAME_TYPE);
+      var branch = Blockly.CSharp.statementToCode(block, 'STACK');
+      branch = reindentBranch(branch);
+      var args = [];
+      var variables = block.getVars();
+      for (var i = 0; i < variables.length; i++) {
+        args[i] = 'dynamic ' + Blockly.CSharp.nameDB_.getName(variables[i], Blockly.Variables.NAME_TYPE);
+      }
+
+      // [修正] 判斷平台，決定是否加上 static
+      var platform = document.getElementById('target-platform').value;
+      var prefix = (platform === 'vs') ? 'static ' : '';
+
+      var code = prefix + 'void ' + funcName + '(' + args.join(', ') + ')\n        {\n' + 
+                 branch + 
+                 '        }';
+      Blockly.CSharp.definitions_[funcName] = code;
+      return null;
+    };
+
+    Blockly.CSharp.forBlock['procedures_callreturn'] = function(block) {
+      var funcName = Blockly.CSharp.nameDB_.getName(block.getFieldValue('NAME'), Blockly.Procedures.NAME_TYPE);
+      var args = [];
+      var variables = block.arguments_ || [];
+      for (var i = 0; i < variables.length; i++) {
+        args[i] = Blockly.CSharp.valueToCode(block, 'ARG' + i, Blockly.CSharp.ORDER_NONE) || 'null';
+      }
+      var code = funcName + '(' + args.join(', ') + ')';
+      return [code, Blockly.CSharp.ORDER_FUNCTION_CALL];
+    };
+
+    Blockly.CSharp.forBlock['procedures_callnoreturn'] = function(block) {
+      var funcName = Blockly.CSharp.nameDB_.getName(block.getFieldValue('NAME'), Blockly.Procedures.NAME_TYPE);
+      var args = [];
+      var variables = block.arguments_ || [];
+      for (var i = 0; i < variables.length; i++) {
+        args[i] = Blockly.CSharp.valueToCode(block, 'ARG' + i, Blockly.CSharp.ORDER_NONE) || 'null';
+      }
+      return funcName + '(' + args.join(', ') + ');\n';
+    };
+
+    Blockly.CSharp.forBlock['procedures_ifreturn'] = function(block) {
+      var condition = Blockly.CSharp.valueToCode(block, 'CONDITION', Blockly.CSharp.ORDER_NONE) || 'false';
+      var code = 'if (' + condition + ') {\n';
+      if (block.hasReturnValue_) {
+        var value = Blockly.CSharp.valueToCode(block, 'VALUE', Blockly.CSharp.ORDER_NONE) || 'null';
+        code += '  return ' + value + ';\n';
+      } else {
+        code += '  return;\n';
+      }
+      code += '}\n';
+      return code;
+    };
+
+    Blockly.CSharp.forBlock['text_print'] = function(block) {
+      var msg = Blockly.CSharp.valueToCode(block, 'TEXT', Blockly.CSharp.ORDER_NONE) || '""';
+      var platform = document.getElementById('target-platform').value;
+      if (platform === 'unity') {
+          return 'Debug.Log(' + msg + ');\n';
+      } else {
+          return 'Console.WriteLine(' + msg + ');\n';
+      }
+    };
+    Blockly.CSharp.forBlock['text'] = function(block) {
+      var code = Blockly.CSharp.quote_(block.getFieldValue('TEXT'));
+      return [code, Blockly.CSharp.ORDER_ATOMIC];
+    };
+    Blockly.CSharp.forBlock['text_join'] = function(block) {
+      var code;
+      if (block.itemCount_ == 0) {
+        return ['""', Blockly.CSharp.ORDER_ATOMIC];
+      } else if (block.itemCount_ == 1) {
+        var element = Blockly.CSharp.valueToCode(block, 'ADD0', Blockly.CSharp.ORDER_NONE) || '""';
+        return ['' + element, Blockly.CSharp.ORDER_ATOMIC];
+      } else {
+        var elements = [];
+        for (var i = 0; i < block.itemCount_; i++) {
+          elements.push(Blockly.CSharp.valueToCode(block, 'ADD' + i, Blockly.CSharp.ORDER_NONE) || '""');
+        }
+        code = 'string.Concat(' + elements.join(', ') + ')';
+        return [code, Blockly.CSharp.ORDER_FUNCTION_CALL];
+      }
+    };
+    Blockly.CSharp.forBlock['controls_if'] = function(block) {
+      var n = 0;
+      var code = '', branchCode, conditionCode;
+      do {
+        conditionCode = Blockly.CSharp.valueToCode(block, 'IF' + n, Blockly.CSharp.ORDER_NONE) || 'false';
+        branchCode = Blockly.CSharp.statementToCode(block, 'DO' + n);
+        code += (n > 0 ? ' else ' : '') + 'if (' + conditionCode + ') {\n' + branchCode + '}';
+        ++n;
+      } while (block.getInput('IF' + n));
+      if (block.getInput('ELSE')) {
+        branchCode = Blockly.CSharp.statementToCode(block, 'ELSE');
+        code += ' else {\n' + branchCode + '}';
+      }
+      return code + '\n';
+    };
+    Blockly.CSharp.forBlock['logic_compare'] = function(block) {
+      var OPERATORS = { 'EQ': '==', 'NEQ': '!=', 'LT': '<', 'LTE': '<=', 'GT': '>', 'GTE': '>=' };
+      var operator = OPERATORS[block.getFieldValue('OP')];
+      var order = (operator == '==' || operator == '!=') ? Blockly.CSharp.ORDER_EQUALITY : Blockly.CSharp.ORDER_RELATIONAL;
+      var argument0 = Blockly.CSharp.valueToCode(block, 'A', order) || '0';
+      var argument1 = Blockly.CSharp.valueToCode(block, 'B', order) || '0';
+      return [argument0 + ' ' + operator + ' ' + argument1, order];
+    };
+    Blockly.CSharp.forBlock['logic_operation'] = function(block) {
+      var operator = (block.getFieldValue('OP') == 'AND') ? '&&' : '||';
+      var order = (operator == '&&') ? Blockly.CSharp.ORDER_LOGICAL_AND : Blockly.CSharp.ORDER_LOGICAL_OR;
+      var argument0 = Blockly.CSharp.valueToCode(block, 'A', order) || 'false';
+      var argument1 = Blockly.CSharp.valueToCode(block, 'B', order) || 'false';
+      return [argument0 + ' ' + operator + ' ' + argument1, order];
+    };
+    Blockly.CSharp.forBlock['logic_boolean'] = function(block) {
+      return [(block.getFieldValue('BOOL') == 'TRUE') ? 'true' : 'false', Blockly.CSharp.ORDER_ATOMIC];
+    };
+    Blockly.CSharp.forBlock['controls_repeat_ext'] = function(block) {
+      var repeats = Blockly.CSharp.valueToCode(block, 'TIMES', Blockly.CSharp.ORDER_ASSIGNMENT) || '0';
+      var branch = Blockly.CSharp.statementToCode(block, 'DO');
+      var loopVar = Blockly.CSharp.nameDB_.getDistinctName('i', Blockly.Variables.NAME_TYPE);
+      return 'for (int ' + loopVar + ' = 0; ' + loopVar + ' < ' + repeats + '; ' + loopVar + '++) {\n' + branch + '}\n';
+    };
+    Blockly.CSharp.forBlock['controls_whileUntil'] = function(block) {
+      var until = block.getFieldValue('MODE') == 'UNTIL';
+      var argument0 = Blockly.CSharp.valueToCode(block, 'BOOL', until ? Blockly.CSharp.ORDER_ATOMIC : Blockly.CSharp.ORDER_NONE) || 'false';
+      var branch = Blockly.CSharp.statementToCode(block, 'DO');
+      if (until) argument0 = '!' + argument0;
+      return 'while (' + argument0 + ') {\n' + branch + '}\n';
+    };
+    Blockly.CSharp.forBlock['controls_flow_statements'] = function(block) {
+       return (block.getFieldValue('FLOW') == 'BREAK' ? 'break;' : 'continue;') + '\n';
+    };
+    Blockly.CSharp.forBlock['math_number'] = function(block) {
+      return [parseFloat(block.getFieldValue('NUM')), Blockly.CSharp.ORDER_ATOMIC];
+    };
+    Blockly.CSharp.forBlock['math_arithmetic'] = function(block) {
+      var OPERATORS = {
+        'ADD': [' + ', Blockly.CSharp.ORDER_ADDITIVE],
+        'MINUS': [' - ', Blockly.CSharp.ORDER_ADDITIVE],
+        'MULTIPLY': [' * ', Blockly.CSharp.ORDER_MULTIPLICATIVE],
+        'DIVIDE': [' / ', Blockly.CSharp.ORDER_MULTIPLICATIVE],
+        'POWER': [null, Blockly.CSharp.ORDER_NONE]
+      };
+      var tuple = OPERATORS[block.getFieldValue('OP')];
+      var operator = tuple[0];
+      var argument0 = Blockly.CSharp.valueToCode(block, 'A', tuple[1]) || '0';
+      var argument1 = Blockly.CSharp.valueToCode(block, 'B', tuple[1]) || '0';
+      if (!operator) return ['Math.Pow(' + argument0 + ', ' + argument1 + ')', Blockly.CSharp.ORDER_FUNCTION_CALL];
+      return [argument0 + operator + argument1, tuple[1]];
+    };
+    // math_random_int was moved up for better grouping
+    Blockly.CSharp.forBlock['variables_get'] = function(block) {
+      var id = block.getFieldValue('VAR');
+      var varModel = block.workspace.getVariableById(id);
+      var name = varModel ? varModel.name : 'unknown_var';
+      var code = Blockly.CSharp.nameDB_.getName(name, Blockly.Variables.NAME_TYPE);
+      return [code, Blockly.CSharp.ORDER_ATOMIC];
+    };
+    Blockly.CSharp.forBlock['variables_set'] = function(block) {
+      var argument0 = Blockly.CSharp.valueToCode(block, 'VALUE', Blockly.CSharp.ORDER_ASSIGNMENT) || '0';
+      var id = block.getFieldValue('VAR');
+      var varModel = block.workspace.getVariableById(id);
+      var name = varModel ? varModel.name : 'unknown_var';
+      var varName = Blockly.CSharp.nameDB_.getName(name, Blockly.Variables.NAME_TYPE);
+      return varName + ' = ' + argument0 + ';\n';
+    };
+    Blockly.CSharp.forBlock['math_change'] = function(block) {
+      var argument0 = Blockly.CSharp.valueToCode(block, 'DELTA',
+          Blockly.CSharp.ORDER_ADDITIVE) || '0';
+      var id = block.getFieldValue('VAR');
+      var varModel = block.workspace.getVariableById(id);
+      var name = varModel ? varModel.name : 'unknown_var';
+      var varName = Blockly.CSharp.nameDB_.getName(name, Blockly.Variables.NAME_TYPE);
+      return varName + ' += ' + argument0 + ';\n';
+    };
+
+
+    /* ==========================================================================
+       4. 啟動與執行
+       ========================================================================== */
+    var demoWorkspace = Blockly.inject('blocklyDiv', {
+      media: 'https://unpkg.com/blockly@10.4.3/media/',
+      toolbox: document.getElementById('toolbox')
+    });
+
+    function updateCode() {
+      var code = Blockly.CSharp.workspaceToCode(demoWorkspace);
+      document.getElementById('codeOutput').value = code;
+    }
+
+    function copyCode() {
+      var copyText = document.getElementById("codeOutput");
+      copyText.select();
+      document.execCommand("copy");
+      alert("已複製到剪貼簿！");
+    }
+
+    function runCode() {
+      var consoleDiv = document.getElementById('consoleOutput');
+      consoleDiv.innerHTML = '';
+      
+      // [修正] 改寫 JavaScript.init，解決 CodeGenerator init 和 Deprecated 錯誤
+      Blockly.JavaScript.init = function(workspace) {
+        Blockly.JavaScript.definitions_ = Object.create(null);
+        if (!Blockly.JavaScript.nameDB_) {
+          Blockly.JavaScript.nameDB_ =
+              new Blockly.Names(Blockly.JavaScript.RESERVED_WORDS_);
+        } else {
+          Blockly.JavaScript.nameDB_.reset();
+        }
+        // [關鍵修正] 設定 VariableMap 和 初始化標記
+        Blockly.JavaScript.nameDB_.setVariableMap(workspace.getVariableMap());
+        this.isInitialized = true;
+
+        var defvars = [];
+        var variables = workspace.getAllVariables();
+        if (variables.length) {
+          for (var i = 0; i < variables.length; i++) {
+            var varName = Blockly.JavaScript.nameDB_.getName(variables[i].name,
+                Blockly.Variables.NAME_TYPE);
+            defvars.push(varName + ' = 0'); // 初始化為 0
+          }
+          Blockly.JavaScript.definitions_['variables'] = 'var ' + defvars.join(', ') + ';';
+        }
+      };
+
+      Blockly.JavaScript.forBlock['text_print'] = function(block) {
+        var msg = Blockly.JavaScript.valueToCode(block, 'TEXT', Blockly.JavaScript.ORDER_NONE) || "''";
+        return `logToConsole(${msg});\n`;
+      };
+
+      Blockly.JavaScript.forBlock['text_prompt_ext'] = function(block) {
+         var msg = Blockly.JavaScript.valueToCode(block, 'TEXT', Blockly.JavaScript.ORDER_NONE) || "''";
+         var type = block.getFieldValue('TYPE');
+         var isNumber = (type === 'NUMBER');
+         var code = `promptInput(${msg}, ${isNumber})`;
+         return [code, Blockly.JavaScript.ORDER_FUNCTION_CALL];
+      };
+
+      Blockly.JavaScript.addReservedWords('logToConsole');
+      Blockly.JavaScript.addReservedWords('promptInput');
+
+      try {
+        var code = Blockly.JavaScript.workspaceToCode(demoWorkspace);
+        
+        consoleDiv.innerHTML += '<span style="color: #666;">--- 開始執行 ---</span>\n';
+        
+        window.logToConsole = function(text) {
+          var span = document.createElement('span');
+          span.className = 'console-log';
+          span.textContent = text + '\n';
+          consoleDiv.appendChild(span);
+          consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        };
+
+        window.promptInput = function(msg, isNumber) {
+            var val = prompt(msg);
+            if (isNumber) {
+                var num = Number(val);
+                if (isNaN(num) || val === null || val.trim() === '') {
+                    var errSpan = document.createElement('span');
+                    errSpan.className = 'console-error';
+                    errSpan.textContent = '[錯誤] 輸入內容 "' + val + '" 不是有效的數字 (NaN)\n';
+                    consoleDiv.appendChild(errSpan);
+                    return 0;
+                }
+                return num;
+            }
+            return val || "";
+        };
+
+        eval(code);
+        
+        consoleDiv.innerHTML += '<span style="color: #666;">--- 執行結束 ---</span>\n';
+        
+      } catch (e) {
+        consoleDiv.innerHTML += `<span class="console-error">執行錯誤: ${e.message}</span>\n`;
+      }
+    }
+
+    demoWorkspace.addChangeListener(updateCode);
+    setTimeout(updateCode, 100); 
+
+  </script>
+</body>
+</html>
