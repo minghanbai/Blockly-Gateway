@@ -1,6 +1,7 @@
 # Blockly-Gateway 🚪
 
 Blockly-Gateway 是一個專為程式設計初學者設計的視覺化過渡工具。
+
 它的目標是作為一座「閘道」，幫助學生從圖形化積木（Blockly）無痛跨越到純文字編碼（Visual Studio / Unity）。
 
 ## ✨ 主要功能
@@ -13,13 +14,13 @@ Blockly-Gateway 是一個專為程式設計初學者設計的視覺化過渡工�
 
 * 防呆與容錯：
 
-** 變數採用 dynamic 型別，避免初學者因型別錯誤受挫。
+  * 變數採用 dynamic 型別，避免初學者因型別錯誤受挫。
 
-** 智慧偵測：僅在需要時才顯示輔助函式（如 Input 或 Random），保持代碼介面整潔。
+  * 智慧偵測：僅在需要時才顯示輔助函式（如 Input 或 Random），保持代碼介面整潔。
 
 ## 🚀 線上試用
 
-[點擊這裡使用工具](https://minghanbai.github.io/Blockly-Gateway/)
+* [點擊這裡使用工具](https://minghanbai.github.io/Blockly-Gateway/)
 
 🛠️ 教學應用場景
 
