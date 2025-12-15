@@ -330,7 +330,7 @@
       Blockly.CSharp.nameDB_.setVariableMap(workspace.getVariableMap());
       this.isInitialized = true;
 
-      // [新增] 旗標，用來偵測是否使用了特定功能的積木
+      // 旗標：用來偵測是否使用了特定功能的積木
       Blockly.CSharp.provideInputHelper_ = false;
       Blockly.CSharp.provideRandomHelper_ = false;
 
@@ -356,7 +356,6 @@
       var platform = document.getElementById('target-platform').value;
       var allCode = '';
       
-      // 輔助程式碼片段
       var inputHelper = 
         '        static string Input(string prompt)\n' +
         '        {\n' +
@@ -373,10 +372,8 @@
 
       var randomObj = '        static Random _random = new Random();';
 
-      // [修改] 根據旗標與平台，決定要加入哪些輔助程式碼
       var helperCode = '';
       
-      // 1. Input Helper: 只要用了輸入積木就加入
       if (Blockly.CSharp.provideInputHelper_) {
           if (platform === 'vs') {
               helperCode += '\n' + '        // [輔助] 輸入函式\n' + inputHelper + '\n';
@@ -385,19 +382,17 @@
           }
       }
 
-      // 2. Random Helper: 只有在 VS 模式且用了隨機積木時才加入 _random 物件
       if (Blockly.CSharp.provideRandomHelper_ && platform === 'vs') {
           helperCode += '\n' + '        // [輔助] 亂數物件\n' + randomObj + '\n';
       }
 
-      // 組合程式碼
       if (platform === 'vs') {
         allCode = 'using System;\nusing System.Collections.Generic;\n\n' +
                   'namespace BlocklyApp\n{\n' +
                   '    class Program\n    {\n' +
                   '        // --- [函式定義區] ---\n' +
                   (functionsCode ? '        ' + functionsCode + '\n' : '') +
-                  helperCode + // 插入動態生成的輔助碼
+                  helperCode + 
                   '\n' +
                   '        static void Main(string[] args)\n        {\n' +
                   '            // --- [變數宣告區] ---\n' +
@@ -411,7 +406,7 @@
                   'public class MyScript : MonoBehaviour\n{\n' +
                   '    // --- [函式定義區] ---\n' +
                   (functionsCode ? '    ' + functionsCode.replace(/\n        /g, '\n    ') + '\n' : '') +
-                  helperCode + // 插入動態生成的輔助碼
+                  helperCode + 
                   '\n' +
                   '    void Start()\n    {\n' +
                   '        // --- [變數宣告區] ---\n' +
@@ -449,9 +444,7 @@
        ========================================================================== */
     
     Blockly.CSharp.forBlock['text_prompt_ext'] = function(block) {
-      // [標記] 使用了輸入積木
       Blockly.CSharp.provideInputHelper_ = true;
-      
       var msg = Blockly.CSharp.valueToCode(block, 'TEXT', Blockly.CSharp.ORDER_NONE) || '""';
       var type = block.getFieldValue('TYPE');
       var code = 'Input(' + msg + ')';
@@ -498,9 +491,7 @@
       } else if (where == 'LAST') {
         return [list + '[' + list + '.Count - 1]', Blockly.CSharp.ORDER_MEMBER];
       } else if (where == 'RANDOM') {
-        // [標記] 使用了隨機積木
         Blockly.CSharp.provideRandomHelper_ = true;
-        
         var platform = document.getElementById('target-platform').value;
         var code;
         if (platform === 'unity') {
@@ -531,9 +522,7 @@
       } else if (where == 'LAST') {
         return list + '[' + list + '.Count - 1] = ' + value + ';\n';
       } else if (where == 'RANDOM') {
-        // [標記] 使用了隨機積木
         Blockly.CSharp.provideRandomHelper_ = true;
-        
         var platform = document.getElementById('target-platform').value;
         if (platform === 'unity') {
             return list + '[Random.Range(0, ' + list + '.Count)] = ' + value + ';\n';
@@ -545,9 +534,7 @@
     };
 
     Blockly.CSharp.forBlock['math_random_int'] = function(block) {
-      // [標記] 使用了隨機積木
       Blockly.CSharp.provideRandomHelper_ = true;
-        
       var argument0 = Blockly.CSharp.valueToCode(block, 'FROM', Blockly.CSharp.ORDER_NONE) || '0';
       var argument1 = Blockly.CSharp.valueToCode(block, 'TO', Blockly.CSharp.ORDER_NONE) || '0';
       var platform = document.getElementById('target-platform').value;
@@ -560,17 +547,13 @@
       var branch = Blockly.CSharp.statementToCode(block, 'STACK');
       branch = reindentBranch(branch);
       var returnCode = Blockly.CSharp.valueToCode(block, 'RETURN', Blockly.CSharp.ORDER_NONE) || '';
-      
       var args = [];
       var variables = block.getVars();
       for (var i = 0; i < variables.length; i++) {
         args[i] = 'dynamic ' + Blockly.CSharp.nameDB_.getName(variables[i], Blockly.Variables.NAME_TYPE);
       }
-
-      // [修正] 判斷平台，決定是否加上 static
       var platform = document.getElementById('target-platform').value;
       var prefix = (platform === 'vs') ? 'static ' : '';
-
       var code = prefix + 'dynamic ' + funcName + '(' + args.join(', ') + ')\n        {\n' + 
                  branch + 
                  (returnCode ? '            return ' + returnCode + ';\n' : '') +
@@ -588,11 +571,8 @@
       for (var i = 0; i < variables.length; i++) {
         args[i] = 'dynamic ' + Blockly.CSharp.nameDB_.getName(variables[i], Blockly.Variables.NAME_TYPE);
       }
-
-      // [修正] 判斷平台，決定是否加上 static
       var platform = document.getElementById('target-platform').value;
       var prefix = (platform === 'vs') ? 'static ' : '';
-
       var code = prefix + 'void ' + funcName + '(' + args.join(', ') + ')\n        {\n' + 
                  branch + 
                  '        }';
@@ -730,7 +710,6 @@
       if (!operator) return ['Math.Pow(' + argument0 + ', ' + argument1 + ')', Blockly.CSharp.ORDER_FUNCTION_CALL];
       return [argument0 + operator + argument1, tuple[1]];
     };
-    // math_random_int was moved up for better grouping
     Blockly.CSharp.forBlock['variables_get'] = function(block) {
       var id = block.getFieldValue('VAR');
       var varModel = block.workspace.getVariableById(id);
@@ -781,7 +760,10 @@
       var consoleDiv = document.getElementById('consoleOutput');
       consoleDiv.innerHTML = '';
       
-      // [修正] 改寫 JavaScript.init，解決 CodeGenerator init 和 Deprecated 錯誤
+      // 設定 JavaScript 生成器的無窮迴圈保護陷阱
+      // 這會在每個迴圈開始時執行一段代碼
+      Blockly.JavaScript.INFINITE_LOOP_TRAP = 'if (--window.loopTrap < 0) throw new Error("InfiniteLoop");\n';
+
       Blockly.JavaScript.init = function(workspace) {
         Blockly.JavaScript.definitions_ = Object.create(null);
         if (!Blockly.JavaScript.nameDB_) {
@@ -790,7 +772,6 @@
         } else {
           Blockly.JavaScript.nameDB_.reset();
         }
-        // [關鍵修正] 設定 VariableMap 和 初始化標記
         Blockly.JavaScript.nameDB_.setVariableMap(workspace.getVariableMap());
         this.isInitialized = true;
 
@@ -800,7 +781,7 @@
           for (var i = 0; i < variables.length; i++) {
             var varName = Blockly.JavaScript.nameDB_.getName(variables[i].name,
                 Blockly.Variables.NAME_TYPE);
-            defvars.push(varName + ' = 0'); // 初始化為 0
+            defvars.push(varName + ' = 0');
           }
           Blockly.JavaScript.definitions_['variables'] = 'var ' + defvars.join(', ') + ';';
         }
@@ -824,6 +805,8 @@
 
       try {
         var code = Blockly.JavaScript.workspaceToCode(demoWorkspace);
+        // 重要：產生完畢後清除陷阱，以免影響其他操作
+        Blockly.JavaScript.INFINITE_LOOP_TRAP = null;
         
         consoleDiv.innerHTML += '<span style="color: #666;">--- 開始執行 ---</span>\n';
         
@@ -851,12 +834,19 @@
             return val || "";
         };
 
+        // 初始化保護計數器 (例如 10萬次)
+        window.loopTrap = 100000;
+
         eval(code);
         
         consoleDiv.innerHTML += '<span style="color: #666;">--- 執行結束 ---</span>\n';
         
       } catch (e) {
-        consoleDiv.innerHTML += `<span class="console-error">執行錯誤: ${e.message}</span>\n`;
+        if (e.message === "InfiniteLoop") {
+             consoleDiv.innerHTML += `<span class="console-error" style="color: #ff6b68; font-weight: bold;">\n[錯誤] 偵測到無窮迴圈！\n系統強制停止了程式。\n請檢查您的迴圈條件是否正確。</span>\n`;
+        } else {
+             consoleDiv.innerHTML += `<span class="console-error">執行錯誤: ${e.message}</span>\n`;
+        }
       }
     }
 
